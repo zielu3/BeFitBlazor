@@ -1,0 +1,89 @@
+@page "/TrainingSessions/Edit/{Id:int}"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using BeFitBlazor.DTOs
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Edytuj sesjê treningow¹</PageTitle>
+
+<h1>Edytuj sesjê treningow¹</h1>
+<hr />
+
+@if (dto == null)
+{
+    <p><em>£adowanie...</em></p>
+}
+else
+{
+    <EditForm Model="@dto" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="mb-3">
+            <label class="form-label">Rozpoczêcie:</label>
+            <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="dto.StartAt" class="form-control" />
+            <ValidationMessage For="@(() => dto.StartAt)" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Zakoñczenie:</label>
+            <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="dto.EndAt" class="form-control" />
+            <ValidationMessage For="@(() => dto.EndAt)" />
+        </div>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+        <a href="/TrainingSessions" class="btn btn-secondary">Anuluj</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private TrainingSessionCreateDto? dto;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var session = await DbContext.TrainingSessions
+                .FirstOrDefaultAsync(x => x.Id == Id && x.UserId == userId);
+            
+            if (session != null)
+            {
+                dto = new TrainingSessionCreateDto
+                {
+                    StartAt = session.StartAt,
+                    EndAt = session.EndAt
+                };
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (!string.IsNullOrEmpty(userId) && dto != null)
+        {
+            var session = await DbContext.TrainingSessions
+                .FirstOrDefaultAsync(x => x.Id == Id && x.UserId == userId);
+            
+            if (session != null)
+            {
+                session.StartAt = dto.StartAt;
+                session.EndAt = dto.EndAt;
+                
+                DbContext.TrainingSessions.Update(session);
+                await DbContext.SaveChangesAsync();
+                Nav.NavigateTo("/TrainingSessions");
+            }
+        }
+    }
+}

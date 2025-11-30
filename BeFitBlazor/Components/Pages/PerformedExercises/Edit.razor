@@ -1,0 +1,130 @@
+@page "/PerformedExercises/Edit/{Id:int}"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using BeFitBlazor.DTOs
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Edytuj wykonane æwiczenie</PageTitle>
+
+<h1>Edytuj wykonane æwiczenie</h1>
+<hr />
+
+@if (dto == null || exerciseTypes == null || trainingSessions == null)
+{
+    <p><em>£adowanie...</em></p>
+}
+else
+{
+    <EditForm Model="@dto" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="mb-3">
+            <label class="form-label">Typ æwiczenia:</label>
+            <InputSelect @bind-Value="dto.ExerciseTypeId" class="form-select">
+                <option value="0">-- Wybierz --</option>
+                @foreach (var et in exerciseTypes)
+                {
+                    <option value="@et.Id">@et.Name</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => dto.ExerciseTypeId)" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Sesja treningowa:</label>
+            <InputSelect @bind-Value="dto.TrainingSessionId" class="form-select">
+                <option value="0">-- Wybierz --</option>
+                @foreach (var ts in trainingSessions)
+                {
+                    <option value="@ts.Id">@ts.StartAt</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => dto.TrainingSessionId)" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Obci¹¿enie (kg):</label>
+            <InputNumber @bind-Value="dto.Weight" class="form-control" />
+            <ValidationMessage For="@(() => dto.Weight)" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Serie:</label>
+            <InputNumber @bind-Value="dto.Sets" class="form-control" />
+            <ValidationMessage For="@(() => dto.Sets)" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Powtórzenia w serii:</label>
+            <InputNumber @bind-Value="dto.Reps" class="form-control" />
+            <ValidationMessage For="@(() => dto.Reps)" />
+        </div>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+        <a href="/PerformedExercises" class="btn btn-secondary">Anuluj</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private PerformedExerciseCreateDto? dto;
+    private List<ExerciseType>? exerciseTypes;
+    private List<TrainingSession>? trainingSessions;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        exerciseTypes = await DbContext.ExerciseTypes.ToListAsync();
+        
+        if (!string.IsNullOrEmpty(userId))
+        {
+            trainingSessions = await DbContext.TrainingSessions
+                .Where(t => t.UserId == userId)
+                .ToListAsync();
+            
+            var exercise = await DbContext.PerformedExercises
+                .FirstOrDefaultAsync(x => x.Id == Id && x.UserId == userId);
+            
+            if (exercise != null)
+            {
+                dto = new PerformedExerciseCreateDto
+                {
+                    TrainingSessionId = exercise.TrainingSessionId,
+                    ExerciseTypeId = exercise.ExerciseTypeId,
+                    Weight = exercise.Weight,
+                    Sets = exercise.Sets,
+                    Reps = exercise.Reps
+                };
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (!string.IsNullOrEmpty(userId) && dto != null)
+        {
+            var exercise = await DbContext.PerformedExercises
+                .FirstOrDefaultAsync(x => x.Id == Id && x.UserId == userId);
+            
+            if (exercise != null)
+            {
+                exercise.TrainingSessionId = dto.TrainingSessionId;
+                exercise.ExerciseTypeId = dto.ExerciseTypeId;
+                exercise.Weight = dto.Weight;
+                exercise.Sets = dto.Sets;
+                exercise.Reps = dto.Reps;
+                
+                DbContext.PerformedExercises.Update(exercise);
+                await DbContext.SaveChangesAsync();
+                Nav.NavigateTo("/PerformedExercises");
+            }
+        }
+    }
+}

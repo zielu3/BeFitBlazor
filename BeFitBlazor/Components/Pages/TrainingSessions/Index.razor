@@ -1,0 +1,73 @@
+@page "/TrainingSessions"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Sesje treningowe</PageTitle>
+
+<h1>Sesje treningowe</h1>
+
+<p><a href="/TrainingSessions/Create" class="btn btn-primary">Dodaj now¹</a></p>
+
+@if (sessions == null)
+{
+    <p><em>£adowanie...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Rozpoczêcie</th>
+                <th>Zakoñczenie</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in sessions)
+            {
+                <tr>
+                    <td>@item.StartAt</td>
+                    <td>@item.EndAt</td>
+                    <td>
+                        <a href="/TrainingSessions/Edit/@item.Id" class="btn btn-link">Edytuj</a> |
+                        <button class="btn btn-link" @onclick="() => Delete(item.Id)">Usuñ</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TrainingSession>? sessions;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(userId))
+        {
+            sessions = await DbContext.TrainingSessions.Where(t => t.UserId == userId).ToListAsync();
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        var entity = await DbContext.TrainingSessions.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+        if (entity != null)
+        {
+            DbContext.TrainingSessions.Remove(entity);
+            await DbContext.SaveChangesAsync();
+            sessions = await DbContext.TrainingSessions.Where(t => t.UserId == userId).ToListAsync();
+        }
+    }
+}

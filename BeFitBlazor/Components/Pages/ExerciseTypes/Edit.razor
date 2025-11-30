@@ -1,0 +1,55 @@
+@page "/ExerciseTypes/Edit/{Id:int}"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Edytuj typ æwiczenia</PageTitle>
+
+<h1>Edytuj typ æwiczenia</h1>
+<hr />
+
+@if (exerciseType == null)
+{
+    <p><em>£adowanie...</em></p>
+}
+else
+{
+    <EditForm Model="@exerciseType" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="mb-3">
+            <label class="form-label">Nazwa:</label>
+            <InputText @bind-Value="exerciseType.Name" class="form-control" />
+            <ValidationMessage For="@(() => exerciseType.Name)" />
+        </div>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+        <a href="/ExerciseTypes" class="btn btn-secondary">Anuluj</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private ExerciseType? exerciseType;
+
+    protected override async Task OnInitializedAsync()
+    {
+        exerciseType = await DbContext.ExerciseTypes.FindAsync(Id);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (exerciseType != null)
+        {
+            DbContext.ExerciseTypes.Update(exerciseType);
+            await DbContext.SaveChangesAsync();
+            Nav.NavigateTo("/ExerciseTypes");
+        }
+    }
+}

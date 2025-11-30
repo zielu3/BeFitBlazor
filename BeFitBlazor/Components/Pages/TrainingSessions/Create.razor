@@ -1,0 +1,55 @@
+@page "/TrainingSessions/Create"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using BeFitBlazor.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Dodaj sesjê treningow¹</PageTitle>
+
+<h1>Dodaj sesjê treningow¹</h1>
+<hr />
+
+<EditForm Model="@dto" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label class="form-label">Rozpoczêcie:</label>
+        <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="dto.StartAt" class="form-control" />
+        <ValidationMessage For="@(() => dto.StartAt)" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Zakoñczenie:</label>
+        <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="dto.EndAt" class="form-control" />
+        <ValidationMessage For="@(() => dto.EndAt)" />
+    </div>
+    <button type="submit" class="btn btn-primary">Zapisz</button>
+    <a href="/TrainingSessions" class="btn btn-secondary">Anuluj</a>
+</EditForm>
+
+@code {
+    private TrainingSessionCreateDto dto = new() { StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) };
+
+    private async Task HandleValidSubmit()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var session = new TrainingSession
+            {
+                StartAt = dto.StartAt,
+                EndAt = dto.EndAt,
+                UserId = userId
+            };
+            DbContext.TrainingSessions.Add(session);
+            await DbContext.SaveChangesAsync();
+            Nav.NavigateTo("/TrainingSessions");
+        }
+    }
+}

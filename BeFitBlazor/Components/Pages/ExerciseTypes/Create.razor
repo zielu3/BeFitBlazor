@@ -1,0 +1,36 @@
+@page "/ExerciseTypes/Create"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Dodaj typ æwiczenia</PageTitle>
+
+<h1>Dodaj typ æwiczenia</h1>
+<hr />
+
+<EditForm Model="@exerciseType" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label class="form-label">Nazwa:</label>
+        <InputText @bind-Value="exerciseType.Name" class="form-control" />
+        <ValidationMessage For="@(() => exerciseType.Name)" />
+    </div>
+    <button type="submit" class="btn btn-primary">Zapisz</button>
+    <a href="/ExerciseTypes" class="btn btn-secondary">Anuluj</a>
+</EditForm>
+
+@code {
+    private ExerciseType exerciseType = new();
+
+    private async Task HandleValidSubmit()
+    {
+        DbContext.ExerciseTypes.Add(exerciseType);
+        await DbContext.SaveChangesAsync();
+        Nav.NavigateTo("/ExerciseTypes");
+    }
+}

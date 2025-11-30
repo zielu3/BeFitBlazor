@@ -1,0 +1,61 @@
+@page "/ExerciseTypes"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Typy æwiczeñ</PageTitle>
+
+<h1>Typy æwiczeñ</h1>
+
+<p><a href="/ExerciseTypes/Create" class="btn btn-primary">Dodaj nowy</a></p>
+
+@if (exerciseTypes == null)
+{
+    <p><em>£adowanie...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nazwa</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in exerciseTypes)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>
+                        <a href="/ExerciseTypes/Edit/@item.Id">Edytuj</a> |
+                        <button class="btn btn-link" @onclick="() => Delete(item.Id)">Usuñ</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ExerciseType>? exerciseTypes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        exerciseTypes = await DbContext.ExerciseTypes.ToListAsync();
+    }
+
+    private async Task Delete(int id)
+    {
+        var entity = await DbContext.ExerciseTypes.FindAsync(id);
+        if (entity != null)
+        {
+            DbContext.ExerciseTypes.Remove(entity);
+            await DbContext.SaveChangesAsync();
+            exerciseTypes = await DbContext.ExerciseTypes.ToListAsync();
+        }
+    }
+}

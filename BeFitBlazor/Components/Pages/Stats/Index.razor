@@ -1,0 +1,86 @@
+@page "/Stats"
+@using BeFitBlazor.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@rendermode InteractiveServer
+
+<PageTitle>Statystyki æwiczeñ</PageTitle>
+
+<h1>Statystyki æwiczeñ (ostatnie 4 tygodnie)</h1>
+
+@if (stats == null)
+{
+    <p><em>£adowanie...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Æwiczenie</th>
+                <th>Wykonania</th>
+                <th>£¹cznie powtórzeñ</th>
+                <th>Œr. obci¹¿enie</th>
+                <th>Maks. obci¹¿enie</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in stats)
+            {
+                <tr>
+                    <td>@row.ExerciseTypeName</td>
+                    <td>@row.Count</td>
+                    <td>@row.TotalReps</td>
+                    <td>@row.AvgWeight.ToString("F2")</td>
+                    <td>@row.MaxWeight</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ExerciseStatsVm>? stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var since = DateTime.UtcNow.AddDays(-28);
+            stats = await DbContext.PerformedExercises
+                .Where(x => x.UserId == userId)
+                .Where(x => DbContext.TrainingSessions
+                    .Where(s => s.UserId == userId && s.StartAt >= since)
+                    .Select(s => s.Id)
+                    .Contains(x.TrainingSessionId))
+                .GroupBy(x => new { x.ExerciseTypeId, x.ExerciseType!.Name })
+                .Select(g => new ExerciseStatsVm
+                {
+                    ExerciseTypeId = g.Key.ExerciseTypeId,
+                    ExerciseTypeName = g.Key.Name,
+                    Count = g.Count(),
+                    TotalReps = g.Sum(e => e.Sets * e.Reps),
+                    AvgWeight = g.Average(e => (double?)e.Weight) ?? 0,
+                    MaxWeight = g.Max(e => (double?)e.Weight) ?? 0
+                })
+                .OrderBy(s => s.ExerciseTypeName)
+                .ToListAsync();
+        }
+    }
+
+    public class ExerciseStatsVm
+    {
+        public int ExerciseTypeId { get; set; }
+        public string ExerciseTypeName { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public int TotalReps { get; set; }
+        public double AvgWeight { get; set; }
+        public double MaxWeight { get; set; }
+    }
+}

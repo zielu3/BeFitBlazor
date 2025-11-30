@@ -1,0 +1,87 @@
+@page "/PerformedExercises"
+@using BeFitBlazor.Data
+@using BeFitBlazor.Data.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
+@inject ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Wykonane æwiczenia</PageTitle>
+
+<h1>Wykonane æwiczenia</h1>
+
+<p><a href="/PerformedExercises/Create" class="btn btn-primary">Dodaj nowe</a></p>
+
+@if (exercises == null)
+{
+    <p><em>£adowanie...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Typ æwiczenia</th>
+                <th>Sesja</th>
+                <th>Obci¹¿enie</th>
+                <th>Serie</th>
+                <th>Powtórzenia</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in exercises)
+            {
+                <tr>
+                    <td>@item.ExerciseType?.Name</td>
+                    <td>@item.TrainingSession?.StartAt</td>
+                    <td>@item.Weight</td>
+                    <td>@item.Sets</td>
+                    <td>@item.Reps</td>
+                    <td>
+                        <a href="/PerformedExercises/Edit/@item.Id" class="btn btn-link">Edytuj</a> |
+                        <button class="btn btn-link" @onclick="() => Delete(item.Id)">Usuñ</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<PerformedExercise>? exercises;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(userId))
+        {
+            exercises = await DbContext.PerformedExercises
+                .Include(p => p.ExerciseType)
+                .Include(p => p.TrainingSession)
+                .Where(x => x.UserId == userId)
+                .ToListAsync();
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        var entity = await DbContext.PerformedExercises.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+        if (entity != null)
+        {
+            DbContext.PerformedExercises.Remove(entity);
+            await DbContext.SaveChangesAsync();
+            exercises = await DbContext.PerformedExercises
+                .Include(p => p.ExerciseType)
+                .Include(p => p.TrainingSession)
+                .Where(x => x.UserId == userId)
+                .ToListAsync();
+        }
+    }
+}
